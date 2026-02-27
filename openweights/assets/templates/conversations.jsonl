@@ -1,0 +1,12 @@
+{
+    "messages": [
+        {
+            "role": "user",
+            "content": "This is a user message"
+        },
+        {
+            "role": "assistant",
+            "content": "This is the assistant response"
+        }
+    ]
+}
