@@ -70,6 +70,13 @@ When the user shares a dataset, `.txt`, or any data file via Slack:
 - Confirm the saved path in your reply before proceeding
 - Never rely solely on the original Slack-provided path for subsequent steps
 
+### Inspecting files — never cat large files
+Before reading any file (logs, datasets, CSVs, result files, model outputs, etc.):
+- Check the file size first (`ls -lh` or `wc -l`) before opening it
+- Only use `cat` if the file is clearly small (a few KB / a few dozen lines)
+- For large files, use `head` or `tail` to peek, or write a short Python script to sample, summarise, or process the data
+- Never dump a large file into the context — it fills the turn budget and makes the session unusable
+
 ---
 
 ## Training & Inference Defaults
