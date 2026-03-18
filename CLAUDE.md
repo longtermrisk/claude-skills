@@ -91,6 +91,12 @@ These defaults apply to all OpenWeights training and inference jobs unless expli
 - Use an effective batch size of 32
 - At the start of every training run, log a few randomly sampled examples from the training data
 
+### GPU selection (OpenWeights)
+Prefer the cheapest GPU that fits the job — do not over-provision:
+- **≤ 10B parameters + LoRA** → `L40`
+- **≤ 35B parameters + LoRA** → `A100`
+- Only go larger if the model or batch size genuinely requires it
+
 ### Before launching any job
 - For new jobs or after significant code changes, ask the user whether they want a short smoke test first (2–5 steps, smallest available model) before committing GPU hours — do not ask if the job or code has not changed significantly, and if the user asks for the real job, run the real job
 - Set and log all random seeds (`random`, `numpy`, `torch`) at the start of every run — a result without a fixed seed is not reproducible
