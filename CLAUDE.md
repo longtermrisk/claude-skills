@@ -99,6 +99,7 @@ Prefer the cheapest GPU that fits the job — do not over-provision:
 
 ### Before launching any job
 - For new jobs or after significant code changes, ask the user whether they want a short smoke test first (2–5 steps, smallest available model) before committing GPU hours — do not ask if the job or code has not changed significantly, and if the user asks for the real job, run the real job
+- For smoke tests, run the minimum number of inferences on a small subset of data points (not all inferences, not the full dataset) — the goal is to catch bugs cheaply, not to produce results
 - Set and log all random seeds (`random`, `numpy`, `torch`) at the start of every run — a result without a fixed seed is not reproducible
 
 ### LLM-as-a-judge
