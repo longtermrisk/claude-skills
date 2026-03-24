@@ -89,6 +89,7 @@ These defaults apply to all OpenWeights training and inference jobs unless expli
 - Do not merge the LoRA adapter before pushing to HuggingFace: `merge_before_push = False`
 - Use bf16 models
 - Use an effective batch size of 32
+- Always set `dataloader_drop_last=True` — discard incomplete final batches so every training step uses a full batch
 - At the start of every training run, log a few randomly sampled examples from the training data
 
 ### GPU selection (OpenWeights)
