@@ -92,10 +92,21 @@ These defaults apply to all OpenWeights training and inference jobs unless expli
 - At the start of every training run, log a few randomly sampled examples from the training data
 
 ### GPU selection (OpenWeights)
-List options in `allowed_hardware` in order of preference (cheapest first) — OpenWeights picks the first available:
-- **≤ 10B parameters + LoRA**  → `allowed_hardware=["1x L40", "1x A100", "1x A100S"]`
-- **≤ 35B parameters + LoRA**  → `allowed_hardware=["1x A100", "1x A100S", "1x H100S", "1x H100N"]`
-- **> 35B parameters**         → `allowed_hardware=["1x H200"]`
+The thresholds below are indicative for *LoRA-SFT with bf16*. Adjust based on the algorithm.
+
+*Scale up (needs more VRAM than baseline):*
+- Full-SFT (no LoRA): full gradients + optimizer states → plan for ~3–4× the inference VRAM footprint
+- GRPO, PPO, or any algorithm with a KL/reference model term: two model instances in memory simultaneously → roughly 2× the LoRA-SFT footprint
+- Knowledge distillation / teacher-student: teacher + student both loaded → plan for the combined size of both models
+- GRPO with vLLM for generation: likely needs additional VRAM for the vLLM engine on top of the training model (exact overhead uncertain — verify before committing)
+
+*Scale down (needs less VRAM than baseline):*
+- 4-bit quantization (QLoRA): weights ~4× smaller → can fit larger models on a smaller GPU tier
+
+*Default tiers (LoRA-SFT, bf16) — list cheapest first, OpenWeights picks the first available:*
+- **≤ 10B parameters**  → `allowed_hardware=["1x L40", "1x A100", "1x A100S"]`
+- **≤ 35B parameters**  → `allowed_hardware=["1x A100", "1x A100S", "1x H100S", "1x H100N"]`
+- **> 35B parameters**  → `allowed_hardware=["1x H200"]`
 - Always use `allowed_hardware` to control GPU selection; set `requires_vram_gb=None` to disable the VRAM filter
 - Only use multi-GPU (e.g. `"2x A100"`) if the user requires it
 
