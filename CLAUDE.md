@@ -96,8 +96,8 @@ List options in `allowed_hardware` in order of preference (cheapest first) — O
 - **≤ 10B parameters + LoRA**  → `allowed_hardware=["1x L40", "1x A100", "1x A100S"]`
 - **≤ 35B parameters + LoRA**  → `allowed_hardware=["1x A100", "1x A100S", "1x H100S", "1x H100N"]`
 - **> 35B parameters**         → `allowed_hardware=["1x H200"]`
-- For smoke tests, prefer `requires_vram_gb` over `allowed_hardware` to maximise availability
-- Only use multi-GPU (e.g. `"2x A100"`) if the model genuinely requires it
+- Always use `allowed_hardware` to control GPU selection; set `requires_vram_gb=None` to disable the VRAM filter
+- Only use multi-GPU (e.g. `"2x A100"`) if the user requires it
 
 ### Before launching any job
 - For new jobs or after significant code changes, ask the user whether they want a short smoke test first (2–5 steps, smallest available model) before committing GPU hours — do not ask if the job or code has not changed significantly, and if the user asks for the real job, run the real job
