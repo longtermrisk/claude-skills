@@ -106,9 +106,21 @@ The thresholds below are indicative for *LoRA-SFT with bf16*. Adjust based on th
 *Default tiers (LoRA-SFT, bf16) — list cheapest first, OpenWeights picks the first available:*
 - **≤ 10B parameters**  → `allowed_hardware=["1x L40", "1x A100", "1x A100S"]`
 - **≤ 35B parameters**  → `allowed_hardware=["1x A100", "1x A100S", "1x H100S", "1x H100N"]`
-- **> 35B parameters**  → `allowed_hardware=["1x H200"]`
+- **> 35B parameters**  → `allowed_hardware=["1x H200", "1x B200"]`
 - Always use `allowed_hardware` to control GPU selection; set `requires_vram_gb=None` to disable the VRAM filter
 - Only use multi-GPU (e.g. `"2x A100"`) if the user requires it
+
+*Approximate RunPod on-demand cost for reference:*
+| GPU   | VRAM   | \$/hr |
+|-------|--------|-------|
+| L40   | 48 GB  | $0.99 |
+| A100  | 80 GB  | $1.39 |
+| A100S | 80 GB  | $1.49 |
+| H100S | 80 GB  | $2.69 |
+| H100N | 80 GB  | $3.07 |
+| H200  | 141 GB | $3.59 |
+| B200  | 180 GB | $4.99 |
+When in doubt between two tiers, prefer the cheaper GPU and only escalate if the job OOMs.
 
 ### Before launching any job
 - For new jobs or after significant code changes, ask the user whether they want a short smoke test first (2–5 steps, smallest available model) before committing GPU hours — do not ask if the job or code has not changed significantly, and if the user asks for the real job, run the real job
@@ -126,6 +138,8 @@ The thresholds below are indicative for *LoRA-SFT with bf16*. Adjust based on th
 ### Inference jobs
 - After any batch inference job, log a few randomly sampled completions for inspection
 - Log the exact prompt template (system prompt, user template, few-shot examples) and all generation parameters (model, temperature, top_p, max_tokens, etc.) alongside every set of results — model + config alone is not enough to reproduce LLM outputs
+- Pack all inferences for the same model into a single job — model loading is paid once per job, so batching avoids redundant overhead and cost
+- For inference-only jobs, size the GPU on model weights alone regardless of how the model was trained — gradients, optimizer states, and reference models are not loaded at inference time, so use the default LoRA-SFT tiers as a ceiling, not a floor
 
 ---
 
