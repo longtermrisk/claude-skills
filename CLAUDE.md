@@ -92,10 +92,12 @@ These defaults apply to all OpenWeights training and inference jobs unless expli
 - At the start of every training run, log a few randomly sampled examples from the training data
 
 ### GPU selection (OpenWeights)
-Prefer the cheapest GPU that fits the job — do not over-provision:
-- **≤ 10B parameters + LoRA** → `L40`
-- **≤ 35B parameters + LoRA** → `A100`
-- Only go larger if the model or batch size genuinely requires it
+List options in `allowed_hardware` in order of preference (cheapest first) — OpenWeights picks the first available:
+- **≤ 10B parameters + LoRA**  → `allowed_hardware=["1x L40", "1x A100", "1x A100S"]`
+- **≤ 35B parameters + LoRA**  → `allowed_hardware=["1x A100", "1x A100S", "1x H100S", "1x H100N"]`
+- **> 35B parameters**         → `allowed_hardware=["1x H200"]`
+- For smoke tests, prefer `requires_vram_gb` over `allowed_hardware` to maximise availability
+- Only use multi-GPU (e.g. `"2x A100"`) if the model genuinely requires it
 
 ### Before launching any job
 - For new jobs or after significant code changes, ask the user whether they want a short smoke test first (2–5 steps, smallest available model) before committing GPU hours — do not ask if the job or code has not changed significantly, and if the user asks for the real job, run the real job
