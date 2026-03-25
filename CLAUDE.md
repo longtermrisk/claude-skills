@@ -123,9 +123,23 @@ The thresholds below are indicative for *LoRA-SFT with bf16*. Adjust based on th
 | B200  | 180 GB | $4.99 |
 When in doubt between two tiers, prefer the cheaper GPU and only escalate if the job OOMs.
 
-### Before launching any job
-- For new jobs or after significant code changes, ask the user whether they want a short smoke test first (2–5 steps, smallest available model) before committing GPU hours — do not ask if the job or code has not changed significantly, and if the user asks for the real job, run the real job
-- For smoke tests, run the minimum number of inferences on a small subset of data points (not all inferences, not the full dataset) — the goal is to catch bugs cheaply, not to produce results
+### Cost discipline
+- Always prefer the cheapest GPU that can complete the job
+- Always list at least 2 GPUs in `allowed_hardware` to avoid waiting when the cheapest option is unavailable — keep them ordered cheapest-first
+- For smoke tests, use the smallest-tier GPU (L40 in most cases)
+- Never request a more powerful GPU tier "just in case" — start cheap, escalate only on OOM
+- Before launching a batch of jobs, estimate total GPU-hours and cost (`n_jobs × estimated_runtime × $/hr` from the RunPod price table) and report it to the user. If the estimate exceeds $25, confirm with the user before proceeding
+
+### Experiment execution — staged pipeline
+Run experiments in stages, cheapest first. Do not jump straight to full-scale runs:
+
+1. *Single smoke test* — one experiment variant, smallest model, 2–5 steps, tiny data subset (≤ 10 data points). Goal: catch bugs in the pipeline (data loading, reward function, logging, GPU setup). Fix all issues before proceeding.
+2. *All smoke tests* — run smoke tests for all remaining experiment variants. Same minimal config. Goal: verify every variant's code path works end-to-end before committing real compute.
+3. *Sanity-check run* — one baseline variant at default training setup (full data, full steps), *without any intervention*. Verify that the expected fine-tuning behaviour is present (e.g. the model learns what it should learn) before starting to evaluate interventions aimed at shaping what is learned. If baseline looks wrong, stop and investigate.
+4. *Variant runs* — launch the remaining experiment variants only after stages 1–3 pass. Batch jobs that are short to run (< 20 min) together to reduce scheduling overhead and wall-clock time.
+
+Skip stages only if the user explicitly asks, or if the pipeline is already validated from a previous identical run.
+
 - Set and log all random seeds (`random`, `numpy`, `torch`) at the start of every run — a result without a fixed seed is not reproducible
 
 ### LLM-as-a-judge
@@ -140,7 +154,14 @@ When in doubt between two tiers, prefer the cheaper GPU and only escalate if the
 - After any batch inference job, log a few randomly sampled completions for inspection
 - Log the exact prompt template (system prompt, user template, few-shot examples) and all generation parameters (model, temperature, top_p, max_tokens, etc.) alongside every set of results — model + config alone is not enough to reproduce LLM outputs
 - Pack all inferences for the same model into a single job — model loading is paid once per job, so batching avoids redundant overhead and cost
+- If evaluating N checkpoints of the same base model, consider multi-LoRA deployment (`ow.api.multi_deploy`) rather than N separate jobs
+- When running evals across multiple models, group by base model and launch one job per base model where possible
 - For inference-only jobs, size the GPU on model weights alone regardless of how the model was trained — gradients, optimizer states, and reference models are not loaded at inference time, so use the default LoRA-SFT tiers as a ceiling, not a floor
+
+### Avoid redundant computation
+- Before launching any job, check if an identical or equivalent job has already been run (same model, same data, same config) — OpenWeights deduplicates by content hash, but also check CLAUDE.md tracking notes
+- Cache intermediate results (e.g. inference outputs) so they can be reused across different evaluation metrics without re-running inference
+- If multiple experiments share a base model but differ only in eval prompts or metrics, run inference once and evaluate multiple times on the cached outputs
 
 ---
 
