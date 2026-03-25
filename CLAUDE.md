@@ -85,11 +85,13 @@ These defaults apply to all OpenWeights training and inference jobs unless expli
 
 ### Fine-tuning
 - Use *rsLoRA* (not standard LoRA)
+- Prefer small LoRA ranks (e.g. `r=2`, `r=4`, `r=8`) unless the task clearly needs more capacity — smaller ranks train faster and cost less
 - Train on assistant tokens only: `train_on_responses_only = True`
-- Do not merge the LoRA adapter before pushing to HuggingFace: `merge_before_push = False`
+- Do not merge the LoRA adapter before pushing to HuggingFace: `merge_before_push = False` — pushing only the adapter saves HuggingFace storage and upload time
 - Use bf16 models
 - Use an effective batch size of 32
 - Always set `dataloader_drop_last=True` — discard incomplete final batches so every training step uses a full batch
+- For smoke runs, disable checkpoint saving (`save_steps=0` or equivalent) — checkpoints are expensive to upload and useless for throwaway debug runs
 - At the start of every training run, log a few randomly sampled examples from the training data
 
 ### GPU selection (OpenWeights)
@@ -135,6 +137,7 @@ Run experiments in stages, cheapest first. Do not jump straight to full-scale ru
 
 1. *Single smoke test* — one experiment variant, smallest model, 2–5 steps, tiny data subset (≤ 10 data points). Goal: catch bugs in the pipeline (data loading, reward function, logging, GPU setup). Fix all issues before proceeding.
 2. *All smoke tests* — run smoke tests for all remaining experiment variants. Same minimal config. Goal: verify every variant's code path works end-to-end before committing real compute.
+   - This applies to both training *and* inference jobs — smoke-test inference jobs should also use only a few data points, not the full dataset.
 3. *Sanity-check run* — one baseline variant at default training setup (full data, full steps), *without any intervention*. Verify that the expected fine-tuning behaviour is present (e.g. the model learns what it should learn) before starting to evaluate interventions aimed at shaping what is learned. If baseline looks wrong, stop and investigate.
 4. *Variant runs* — launch the remaining experiment variants only after stages 1–3 pass. Batch jobs that are short to run (< 20 min) together to reduce scheduling overhead and wall-clock time.
 
