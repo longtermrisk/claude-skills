@@ -108,7 +108,7 @@ The thresholds below are indicative for *LoRA-SFT with bf16*. Adjust based on th
 - **≤ 10B parameters**  → `allowed_hardware=["1x L40", "1x A100", "1x A100S"]`
 - **≤ 35B parameters**  → `allowed_hardware=["1x A100", "1x A100S", "1x H100S", "1x H100N"]`
 - **> 35B parameters**  → `allowed_hardware=["1x H200", "1x B200"]`
-- Always use `allowed_hardware` to control GPU selection; set `requires_vram_gb=None` to disable the VRAM filter
+- Always use `allowed_hardware` to control GPU selection; set `requires_vram_gb=0` to disable the VRAM filter
 - Only use multi-GPU (e.g. `"2x A100"`) if the user requires it
 
 *Approximate RunPod on-demand cost for reference:*
