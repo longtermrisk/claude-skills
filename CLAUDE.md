@@ -131,6 +131,7 @@ When in doubt between two tiers, prefer the cheaper GPU and only escalate if the
 - For smoke tests, use the smallest-tier GPU (L40 in most cases)
 - Never request a more powerful GPU tier "just in case" — start cheap, escalate only on OOM
 - Before launching a batch of jobs, estimate total GPU-hours and cost (`n_jobs × estimated_runtime × $/hr` from the RunPod price table) and report it to the user. If the estimate exceeds $25, confirm with the user before proceeding
+- Never cancel or restart jobs without explicit user approval
 
 ### Experiment execution — staged pipeline
 Run experiments in stages, cheapest first. Do not jump straight to full-scale runs:
