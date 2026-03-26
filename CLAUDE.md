@@ -132,6 +132,7 @@ When in doubt between two tiers, prefer the cheaper GPU and only escalate if the
 - Never request a more powerful GPU tier "just in case" — start cheap, escalate only on OOM
 - Before launching a batch of jobs, estimate total GPU-hours and cost (`n_jobs × estimated_runtime × $/hr` from the RunPod price table) and report it to the user. If the estimate exceeds $25, confirm with the user before proceeding
 - Never cancel or restart jobs without explicit user approval
+- Always optimise for speed across training and inference — faster runs mean shorter GPU rental and lower cost. Profile and batch wherever possible
 
 ### Experiment execution — staged pipeline
 Run experiments in stages, cheapest first. Do not jump straight to full-scale runs:
@@ -161,6 +162,7 @@ Skip stages only if the user explicitly asks, or if the pipeline is already vali
 - If evaluating N checkpoints of the same base model, consider multi-LoRA deployment (`ow.api.multi_deploy`) rather than N separate jobs
 - When running evals across multiple models, group by base model and launch one job per base model where possible
 - For inference-only jobs, size the GPU on model weights alone regardless of how the model was trained — gradients, optimizer states, and reference models are not loaded at inference time, so use the default LoRA-SFT tiers as a ceiling, not a floor
+- When writing custom inference code (without vLLM), always batch prompts — sequential single-prompt generation is orders of magnitude slower and wastes GPU time
 
 ### Avoid redundant computation
 - Before launching any job, check if an identical or equivalent job has already been run (same model, same data, same config) — OpenWeights deduplicates by content hash, but also check CLAUDE.md tracking notes
