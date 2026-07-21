@@ -22,6 +22,10 @@ git clone https://github.com/nielsrolf/viseval.git /tmp/viseval
 pip install vibes_eval
 ```
 
+## Provider Setup
+
+The preferred inference provider is the org's LiteLLM proxy (see the `litellm` skill). When `LITELLM_API_KEY` is set (it usually is), vibes_eval routes all inference and judging through the proxy by default — use provider-prefixed model names like `openai/gpt-5-mini` or `anthropic/claude-opus-4-8`. Requests opt in to the proxy's seed-keyed response cache, so interrupted eval runs can simply be re-run and completed samples are served from cache. Set `LITELLM_BASE_URL` to override the proxy URL. Without `LITELLM_API_KEY`, it falls back to localrouter (if installed) with direct provider API keys.
+
 ## Core Concepts
 
 ### Models as Groups
@@ -192,10 +196,10 @@ eval_variant = eval.with_system_prompt("You are helpful")
 
 Two judge types:
 
-- **Logprob judge** (`OpenAiJudge0to100`): Uses OpenAI logprobs to get weighted average of 0-100 token probabilities. Single API call per evaluation. Used for GPT models.
-- **Sampling judge** (`LocalRouterJudge0to100`): Samples N responses with structured output, takes mean of valid scores. Works with any model via LocalRouter.
+- **Logprob judge** (`OpenAiJudge0to100`): Uses OpenAI logprobs to get weighted average of 0-100 token probabilities. Single API call per evaluation. Used for GPT models. Routed through the LiteLLM proxy when `LITELLM_API_KEY` is set.
+- **Sampling judge** (`LiteLLMJudge0to100`, or `LocalRouterJudge0to100` as fallback): Samples N responses with structured output, takes mean of valid scores. Works with any model.
 
-Auto-detection: OpenAI models (gpt*, o1*, o3*) use logprob judge, others use sampling judge. Override with `judge_type="logprob"` or `judge_type="sampling"`.
+Auto-detection: OpenAI models (`gpt*`, `o1*`, `o3*`, with or without the `openai/` prefix) use logprob judge, others use sampling judge. Override with `judge_type="logprob"` or `judge_type="sampling"`.
 
 ### Caching
 
@@ -226,7 +230,8 @@ class MyRunner:
 
 | Runner | Purpose | Selection |
 |---|---|---|
-| `LocalRouterRunner` | Default. Uses localrouter for multi-provider access | Handles all models (empty `available_models`) |
+| `LiteLLMRunner` | Default when `LITELLM_API_KEY` is set. OpenAI SDK against the LiteLLM proxy, with proxy-side seed-keyed response caching | Handles all models (empty `available_models`), provider-prefixed names |
+| `LocalRouterRunner` | Fallback default. Uses localrouter for multi-provider access | Handles all models (empty `available_models`) |
 | `OpenWeightsBatchRunner` | HuggingFace models via OpenWeights batch API | Used for HF models with job grouping |
 | `OpenAiBatchRunner` | OpenAI batch API | Models from `client.models.list()` |
 | `OpenRouterBasemodelRunner` | OpenRouter completions API | Explicit model whitelist |
@@ -239,7 +244,7 @@ The `ModelDispatcher` routes inference calls to the appropriate runner based on 
 from vibes_eval.runner import ModelDispatcher
 
 dispatcher = ModelDispatcher(
-    default_runner=LocalRouterRunner(),
+    default_runner=LiteLLMRunner(),
     runners=[runner1, runner2, ...]
 )
 ```
