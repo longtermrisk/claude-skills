@@ -660,6 +660,8 @@ ow manage start
 - Model merging or conversion
 - Arbitrary Python script needs GPU
 
+Before reaching for a custom job, consider Modal (see the `modal` skill): for custom code you're still iterating on, massive parallel fan-out, or anything user-facing, Modal's ~1s container starts and `modal run` loop usually beat the OpenWeights image+files+entrypoint cycle. Custom jobs shine for validated pipelines that should run on cheap queued RunPod GPUs alongside your other OpenWeights jobs.
+
 **Modifying built-in jobs:**
 Built-in jobs are just Python code in `openweights/jobs/`. To modify:
 1. Copy relevant job class code
