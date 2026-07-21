@@ -11,6 +11,8 @@ OpenWeights is a Python SDK that provides an OpenAI-like interface for running d
 
 **Core Philosophy:** Jobs are defined by (1) Docker image, (2) mounted files, and (3) entrypoint command. Built-in jobs provide convenient templates, while custom jobs enable complete flexibility.
 
+**Choosing a platform:** For standard LLM fine-tuning/inference jobs, OpenWeights is usually the right choice (cheaper GPUs, zero boilerplate, job dedup). For custom interactive GPU code, massive parallel fan-out, or serving/demos, consider Modal — see the `modal` skill's "Modal vs OpenWeights" section.
+
 ## Setup and Validation
 
 ### First-Time Setup
