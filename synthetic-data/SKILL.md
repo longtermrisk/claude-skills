@@ -1,13 +1,13 @@
 ---
 name: synthetic-data
-description: Use this skill when generating synthetic datasets using LLMs. Covers implementation with localrouter, prompting strategies for diversity, model selection, parallelization patterns, and dataset testing workflows. Ideal for creating training data, test datasets, or augmenting existing data.
+description: Use this skill when generating synthetic datasets using LLMs. Covers implementation with the org's LiteLLM proxy, prompting strategies for diversity, model selection, parallelization patterns, and dataset testing workflows. Ideal for creating training data, test datasets, or augmenting existing data.
 ---
 
 # Synthetic Data Generation
 
 ## Overview
 
-Generate high-quality synthetic datasets using LLMs through localrouter's unified interface. This skill covers the complete workflow from implementation to validation, with emphasis on diversity, efficiency, and best practices.
+Generate high-quality synthetic datasets using LLMs through the org's LiteLLM proxy (see the `litellm` skill for full access details). This skill covers the complete workflow from implementation to validation, with emphasis on diversity, efficiency, and best practices.
 
 ## When to Use This Skill
 
@@ -20,85 +20,74 @@ Use this skill when:
 
 ## Prerequisites
 
-Ensure localrouter is installed (refer to the localrouter skill for details):
+The standard `openai` SDK pointed at the LiteLLM proxy:
 
 ```bash
-pip install localrouter
+pip install openai
 ```
 
-Localrouter will detect API keys to register providers that it can access. Always start by viewing available models:
-```bash
-python -c "from localrouter import print_available_models; print_available_models()"
-```
+```python
+import os
+from openai import AsyncOpenAI
 
-If no models are available, you need to set at least one of the following environment variables:
-```bash
-export OPENAI_API_KEY="your-openai-key"
-export ANTHROPIC_API_KEY="your-anthropic-key"
-export GEMINI_API_KEY="your-gemini-key"
-export OPENROUTER_API_KEY="your-openrouter-key"
+client = AsyncOpenAI(
+    api_key=os.environ['LITELLM_API_KEY'],  # already set in the environment
+    base_url="https://litellm.nielsrolf.com",
+    # Cloudflare blocks the SDK's default User-Agent — see the litellm skill
+    default_headers={"User-Agent": "litellm-client/1.0"},
+    max_retries=5,  # built-in exponential backoff for batch jobs
+)
 ```
 
 ## Quick Start
 
-Always use caching and backoff for synthetic data generation. Caching ensures interrupted processes can resume without regenerating completed samples:
+Always use caching for synthetic data generation. The proxy caches responses keyed on the full request (model, messages, seed, temperature, ...), so interrupted processes can resume without regenerating completed samples — just re-run the script:
 
 ```python
 import asyncio
-from localrouter import get_response_cached_with_backoff as get_response, ChatMessage, MessageRole, TextBlock
 
-async def generate_sample():
-    messages = [
-        ChatMessage(
-            role=MessageRole.user,
-            content=[TextBlock(text="Generate a creative story about a robot learning to paint.")]
-        )
-    ]
-
-    response = await get_response(
-        model="gpt-5-mini",
-        messages=messages,
-        temperature=0.8,  # Higher temperature for creativity
-        cache_seed=12345  # Required for caching
+async def generate_sample(seed: int):
+    response = await client.chat.completions.create(
+        model="openai/gpt-5-mini",
+        messages=[{"role": "user", "content": "Generate a creative story about a robot learning to paint."}],
+        temperature=0.8,                             # higher temperature for creativity
+        seed=seed,                                   # distinct seed per sample; part of the cache key
+        extra_body={"cache": {"use-cache": True}},   # opt in to proxy caching
     )
+    return response.choices[0].message.content
 
-    return response.content[0].text
-
-result = asyncio.run(generate_sample())
+result = asyncio.run(generate_sample(seed=12345))
 print(result)
 ```
 
 ## Model Selection
 
-Choose models based on task requirements:
-
-### Current Generation Models (Recommended)
+Model names are `provider/model` (see the `litellm` skill). Choose based on task requirements:
 
 **Most capable:**
-- `claude-sonnet-4-5-20250929` - Best for complex reasoning tasks
-- `gpt-5` - Balanced capability and speed
-- `gemini-2.5-pro` - Google's flagship model
+- `anthropic/claude-sonnet-4-5` - Best for complex reasoning tasks
+- `openai/gpt-5` - Balanced capability and speed
+- `gemini/gemini-2.5-pro` - Google's flagship model
 
 **Fast and cost-effective:**
-- `gpt-5-mini` - Recommended for most synthetic data generation
-- `gemini-2.5-flash` - Fast alternative for high-volume generation
+- `openai/gpt-5-mini` - Recommended for most synthetic data generation
+- `gemini/gemini-2.5-flash` - Fast alternative for high-volume generation
 
-**Specialized:**
-- `o3` - For complex reasoning and mathematical tasks
-- `o4-mini` - Fast reasoning for structured outputs
+**Local (free, but slow and one model loaded at a time):**
+- `local/<model-name>` - llama-server on the host
 
 ### Model Selection Guidelines
 
-- **Most synthetic data generation**: Use `gpt-5-mini` or `claude-sonnet-4-5-20250929`
-- **Complex reasoning tasks**: Use one of the flagship models (`gpt-5`, `claude-sonnet-4-5-20250929`, `gemini-2.5-pro`) with reasoning enables
-- **High-volume generation**: Use `gpt-5-mini` or `gemini-2.5-flash`
+- **Most synthetic data generation**: Use `openai/gpt-5-mini` or `anthropic/claude-sonnet-4-5`
+- **Complex reasoning tasks**: Use a flagship model with reasoning enabled (`reasoning_effort`), and set `max_tokens` generously — reasoning models spend tokens thinking before any visible text
+- **High-volume generation**: Use `openai/gpt-5-mini` or `gemini/gemini-2.5-flash`
 - **Multiple models**: Combine different models for additional diversity
 
 **Important**: Claude models may refuse some AI safety-related tasks that appear dual-use (e.g., jailbreak datasets).
 
 ## Structured Output Generation
 
-Use Pydantic models for type-safe structured data:
+Use Pydantic models for type-safe structured data via the SDK's `parse` helper:
 
 ```python
 from pydantic import BaseModel, Field
@@ -110,26 +99,21 @@ class CalendarEvent(BaseModel):
     participants: List[str] = Field(description="List of participant names")
     description: str = Field(description="Event description")
 
-async def generate_structured_sample():
-    messages = [
-        ChatMessage(
-            role=MessageRole.user,
-            content=[TextBlock(text="Generate a fictional team meeting event.")]
-        )
-    ]
-
-    response = await get_response(
-        model="gpt-5-mini",
-        messages=messages,
+async def generate_structured_sample(seed: int):
+    response = await client.beta.chat.completions.parse(
+        model="openai/gpt-5-mini",
+        messages=[{"role": "user", "content": "Generate a fictional team meeting event."}],
         response_format=CalendarEvent,
-        cache_seed=42
+        seed=seed,
+        extra_body={"cache": {"use-cache": True}},
     )
+    return response.choices[0].message.parsed  # validated CalendarEvent instance
 
-    return response.parsed  # Returns validated CalendarEvent instance
-
-event = asyncio.run(generate_structured_sample())
+event = asyncio.run(generate_structured_sample(seed=42))
 print(f"Event: {event.name} on {event.date}")
 ```
+
+The `response_format` schema is part of the cache key, so structured requests cache just like plain ones.
 
 ## Large-Scale Dataset Generation
 
@@ -148,25 +132,16 @@ For generating large datasets, use parallelization with appropriate concurrency 
 ```python
 import asyncio
 import json
-from localrouter import get_response_cached_with_backoff as get_response, ChatMessage, MessageRole, TextBlock
 
-async def generate_single_sample(prompt, seed):
-    """Generate a single data sample"""
-    messages = [
-        ChatMessage(
-            role=MessageRole.user,
-            content=[TextBlock(text=prompt)]
-        )
-    ]
-
-    response = await get_response(
-        model="gpt-5-mini",
-        messages=messages,
+async def generate_single_sample(prompt: str, seed: int) -> str:
+    response = await client.chat.completions.create(
+        model="openai/gpt-5-mini",
+        messages=[{"role": "user", "content": prompt}],
         temperature=0.8,
-        cache_seed=seed
+        seed=seed,
+        extra_body={"cache": {"use-cache": True}},
     )
-
-    return response.content[0].text
+    return response.choices[0].message.content
 
 async def generate_dataset(prompts, output_file="dataset.jsonl"):
     """Generate a large dataset with parallelization"""
@@ -205,6 +180,8 @@ async def generate_dataset(prompts, output_file="dataset.jsonl"):
 prompts = ["Generate a story about...", "Create a dialogue between...", ...]
 asyncio.run(generate_dataset(prompts))
 ```
+
+Because every request is cached with its seed, re-running this script after a crash skips all completed samples — cached requests return instantly and only the remaining ones hit the upstream provider.
 
 ## Ensuring Diversity
 
@@ -278,48 +255,42 @@ Use different models as another source of diversity. Combine outputs from GPT-5,
 
 ## Tool-Based Generation
 
-Use tools for complex generation workflows requiring structured interaction:
+Use tools for complex generation workflows requiring structured interaction (standard OpenAI tools format works across providers through the proxy):
 
 ```python
-from localrouter import ToolDefinition, ToolUseBlock, ToolResultBlock
-
-# Define a data generation tool
-data_gen_tool = ToolDefinition(
-    name="generate_sample",
-    description="Generate a data sample with specific parameters",
-    input_schema={
-        "type": "object",
-        "properties": {
-            "category": {"type": "string", "description": "Data category"},
-            "format": {"type": "string", "description": "Output format"},
-            "count": {"type": "integer", "description": "Number of samples"}
-        },
-        "required": ["category", "format"]
+data_gen_tool = {
+    "type": "function",
+    "function": {
+        "name": "generate_sample",
+        "description": "Generate a data sample with specific parameters",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "category": {"type": "string", "description": "Data category"},
+                "format": {"type": "string", "description": "Output format"},
+                "count": {"type": "integer", "description": "Number of samples"}
+            },
+            "required": ["category", "format"]
+        }
     }
-)
+}
 
-async def generate_with_tools():
-    messages = [
-        ChatMessage(
-            role=MessageRole.user,
-            content=[TextBlock(text="Generate customer feedback data in JSON format")]
-        )
-    ]
-
-    response = await get_response(
-        model="claude-sonnet-4-5-20250929",
-        messages=messages,
+async def generate_with_tools(seed: int):
+    response = await client.chat.completions.create(
+        model="anthropic/claude-sonnet-4-5",
+        messages=[{"role": "user", "content": "Generate customer feedback data in JSON format"}],
         tools=[data_gen_tool],
-        cache_seed=123
+        seed=seed,
+        extra_body={"cache": {"use-cache": True}},
     )
 
-    # Check for tool calls
-    for block in response.content:
-        if isinstance(block, ToolUseBlock):
-            print(f"Tool: {block.name}, Args: {block.input}")
+    for tool_call in response.choices[0].message.tool_calls or []:
+        print(f"Tool: {tool_call.function.name}, Args: {tool_call.function.arguments}")
 
     return response
 ```
+
+Tool definitions are part of the cache key, so changing a tool schema correctly invalidates the cache.
 
 ## Dataset Exploration and Validation
 
@@ -359,7 +330,7 @@ for col in text_cols:
 ## Best Practices Workflow
 
 1. **Start small**: Test prompts on 10-20 examples before large runs
-2. **Use caching**: Always include `cache_seed` parameter for resumable generation
+2. **Use caching**: Always pass a distinct `seed` per sample and `extra_body={"cache": {"use-cache": True}}` for resumable generation
 3. **Write incrementally**: Save results to files in batches for progress monitoring
 4. **Monitor quality**: Spot-check outputs during generation
 5. **Test diversity**: Analyze sample batches for variety before scaling up
@@ -393,13 +364,14 @@ class DataSchema(BaseModel):
 async def generate_structured_batch(count):
     results = []
     for i in range(count):
-        response = await get_response(
-            model="gpt-5-mini",
+        response = await client.beta.chat.completions.parse(
+            model="openai/gpt-5-mini",
             messages=[...],
             response_format=DataSchema,
-            cache_seed=i
+            seed=i,
+            extra_body={"cache": {"use-cache": True}},
         )
-        results.append(response.parsed)
+        results.append(response.choices[0].message.parsed)
     return results
 ```
 
@@ -408,28 +380,20 @@ async def generate_structured_batch(count):
 ```python
 # Generate conversational data
 async def generate_conversation(seed):
-    messages = []
-
-    # Initial message
-    messages.append(ChatMessage(
-        role=MessageRole.user,
-        content=[TextBlock(text="Start a conversation about AI ethics")]
-    ))
+    messages = [{"role": "user", "content": "Start a conversation about AI ethics"}]
 
     # Generate multiple turns
     for turn in range(3):
-        response = await get_response(
-            model="claude-sonnet-4-5-20250929",
+        response = await client.chat.completions.create(
+            model="anthropic/claude-sonnet-4-5",
             messages=messages,
-            cache_seed=seed * 100 + turn
+            seed=seed * 100 + turn,
+            extra_body={"cache": {"use-cache": True}},
         )
-        messages.append(response)
+        messages.append({"role": "assistant", "content": response.choices[0].message.content})
 
         # Add next user message based on context
-        messages.append(ChatMessage(
-            role=MessageRole.user,
-            content=[TextBlock(text="Continue the discussion")]
-        ))
+        messages.append({"role": "user", "content": "Continue the discussion"})
 
     return messages
 ```
@@ -445,8 +409,8 @@ This skill includes helper scripts:
 
 When generating synthetic data:
 
-- ✓ Use `get_response_cached_with_backoff` with `cache_seed`
-- ✓ Choose appropriate model for task (usually `gpt-5-mini` or `claude-sonnet-4-5-20250929`)
+- ✓ Route all requests through the LiteLLM proxy with a distinct `seed` per sample and `extra_body={"cache": {"use-cache": True}}`
+- ✓ Choose appropriate model for task (usually `openai/gpt-5-mini` or `anthropic/claude-sonnet-4-5`)
 - ✓ Test prompts on 10-20 examples before large runs
 - ✓ Implement parallelization with provider-appropriate concurrency limits
 - ✓ Ensure diversity through combinatory prompts, augmentation, or seed datasets

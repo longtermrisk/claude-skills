@@ -1,67 +1,70 @@
 #!/usr/bin/env python3
 """
-Production-ready script for parallel synthetic data generation using localrouter.
+Production-ready script for parallel synthetic data generation via the org's
+LiteLLM proxy (https://litellm.nielsrolf.com).
 
 This script demonstrates best practices for large-scale dataset generation:
 - Parallel execution with appropriate concurrency limits
 - Incremental writing to output file
 - Progress tracking and error handling
-- Caching support for resumable generation
+- Proxy-side response caching for resumable generation: each request opts in
+  with {"cache": {"use-cache": True}} and carries a distinct seed, so
+  re-running the script after an interruption serves completed samples from
+  cache instantly.
 """
 
 import asyncio
 import json
+import os
 import argparse
-from typing import List, Callable, Any
-from localrouter import (
-    get_response_cached_with_backoff as get_response,
-    ChatMessage,
-    MessageRole,
-    TextBlock
+from typing import List
+
+from openai import AsyncOpenAI
+
+client = AsyncOpenAI(
+    api_key=os.environ['LITELLM_API_KEY'],
+    base_url="https://litellm.nielsrolf.com",
+    # Cloudflare blocks the SDK's default User-Agent — see the litellm skill
+    default_headers={"User-Agent": "litellm-client/1.0"},
+    max_retries=5,
 )
 
 
 async def generate_single_sample(
     prompt: str,
     seed: int,
-    model: str = "gpt-4.1-mini",
+    model: str = "openai/gpt-5-mini",
     temperature: float = 0.8,
     **kwargs
 ) -> str:
-    """Generate a single data sample using localrouter.
+    """Generate a single data sample via the LiteLLM proxy.
 
     Args:
         prompt: The generation prompt
-        seed: Cache seed for reproducible generation
-        model: Model identifier (default: gpt-4.1-mini)
+        seed: Per-sample seed; part of the proxy cache key
+        model: Model identifier (default: openai/gpt-5-mini)
         temperature: Sampling temperature (default: 0.8)
-        **kwargs: Additional arguments to pass to get_response
+        **kwargs: Additional arguments to pass to chat.completions.create
 
     Returns:
         Generated text content
     """
-    messages = [
-        ChatMessage(
-            role=MessageRole.user,
-            content=[TextBlock(text=prompt)]
-        )
-    ]
-
-    response = await get_response(
+    response = await client.chat.completions.create(
         model=model,
-        messages=messages,
+        messages=[{"role": "user", "content": prompt}],
         temperature=temperature,
-        cache_seed=seed,
+        seed=seed,
+        extra_body={"cache": {"use-cache": True}},
         **kwargs
     )
 
-    return response.content[0].text
+    return response.choices[0].message.content
 
 
 async def generate_dataset(
     prompts: List[str],
     output_file: str = "dataset.jsonl",
-    model: str = "gpt-4.1-mini",
+    model: str = "openai/gpt-5-mini",
     temperature: float = 0.8,
     max_concurrent: int = 50,
     batch_size: int = 100,
@@ -73,12 +76,12 @@ async def generate_dataset(
     Args:
         prompts: List of prompts to generate from
         output_file: Output file path (JSONL format)
-        model: Model identifier (default: gpt-4.1-mini)
+        model: Model identifier (default: openai/gpt-5-mini)
         temperature: Sampling temperature (default: 0.8)
         max_concurrent: Maximum concurrent requests (default: 50)
         batch_size: Number of samples to process before writing (default: 100)
-        start_seed: Starting cache seed value (default: 0)
-        **kwargs: Additional arguments to pass to get_response
+        start_seed: Starting seed value (default: 0)
+        **kwargs: Additional arguments to pass to chat.completions.create
     """
     semaphore = asyncio.Semaphore(max_concurrent)
 
@@ -132,7 +135,7 @@ async def generate_dataset(
 def main():
     """Command-line interface for dataset generation."""
     parser = argparse.ArgumentParser(
-        description="Generate synthetic datasets using localrouter"
+        description="Generate synthetic datasets via the LiteLLM proxy"
     )
     parser.add_argument(
         "--prompts-file",
@@ -149,8 +152,8 @@ def main():
     parser.add_argument(
         "--model",
         type=str,
-        default="gpt-4.1-mini",
-        help="Model identifier (default: gpt-4.1-mini)"
+        default="openai/gpt-5-mini",
+        help="Model identifier (default: openai/gpt-5-mini)"
     )
     parser.add_argument(
         "--temperature",
@@ -174,7 +177,7 @@ def main():
         "--start-seed",
         type=int,
         default=0,
-        help="Starting cache seed value (default: 0)"
+        help="Starting seed value (default: 0)"
     )
 
     args = parser.parse_args()
