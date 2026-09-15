@@ -397,7 +397,7 @@ Jobs progress through states: `pending` → `in_progress` → `completed`/`faile
 
 **Key concepts:**
 - **Jobs** are reusable templates (identified by content hash)
-- **Runs** are individual executions of a job
+- **Runs** are individual executions of a job. A job with more than one run was re-executed: a run the cluster manager reaped (see Troubleshooting) is started again **from scratch** under the same job id
 - **Events** are structured logs/outputs during a run
 
 ### Waiting for Completion
@@ -637,6 +637,11 @@ ow manage start
 **"Import error in custom job":**
 - Verify all dependencies in base image
 - Consider building custom Docker image with required packages
+
+**"Job went back to pending mid-run" / "a run is `failed` but its events hold no error":**
+- The cluster manager reaped the worker for a stale heartbeat; your code did not crash. The worker's ping thread can stall while the job is healthy, and the manager terminates the pod once the ping is older than its threshold (120 s by default; newer managers first check that the pod's log has stopped growing, see `references/03_architecture.md` → Fault Tolerance).
+- Tell it apart from a crash: a crash leaves an event `{"error": "Process exited with return code N"}` and a run log. A reaped worker leaves neither; its `worker` row shows `updated_at` about two minutes after `ping`, and the manager saved the pod's live log to `worker.logfile` at termination. While a pod is up, `https://<pod_id>-10101.proxy.runpod.net/logs` serves that log.
+- The job is requeued and re-executed from scratch as a new run under the same job id. A long custom job should push checkpoints to external storage as it goes and resume from them on start, and results should be read per run (attempt), not per job.
 
 ### Getting Help
 
