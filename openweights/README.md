@@ -34,6 +34,7 @@ The main skill file with comprehensive workflow guidance covering all OpenWeight
 - `01_overview.md` - Complete feature overview from README
 - `02_workflows.md` - Detailed cookbook examples and data formats
 - `03_architecture.md` - System architecture documentation
+- `04_cost_tracking.md` - Cost accounting and API-key spending limits
 - `env.worker.example` - Environment variable template
 
 ### assets/

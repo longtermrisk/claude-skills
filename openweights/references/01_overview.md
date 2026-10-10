@@ -9,6 +9,14 @@ This repo is research code. Please use github issues or contact me via email (ni
 An openai-like sdk with the flexibility of working on a local GPU: finetune, inference, API deployments and custom workloads on managed runpod instances.
 
 
+## Cost tracking
+
+View estimated compute spending by job, worker, API key and user in the **Costs**
+dashboard or `ow.costs.report()`. Startup and idle overhead are shown separately and
+included equally across a worker's jobs by default. Organization admins can set
+lifetime per-key spending limits. [Accounting rules, limits and required database
+migration](docs/cost-tracking.md).
+
 ## Installation
 Run `pip install openweights` or install from source via `pip install -e .`
 
@@ -17,7 +25,7 @@ Run `pip install openweights` or install from source via `pip install -e .`
 ## Quickstart
 
 1. **Create an API key**
-You can create one via the `ow signup` or using the [dashboard](https://macstudio.tail78dab5.ts.net).
+You can create one via the `ow signup` or using the [dashboard](https://openweights.nielsrolf.com).
 
 2. **Start the cluster manager** (skip this if you got an API key for a managed cluster)
 The cluster manager is the service that monitors the job queue and starts runpod workers. You have different options to start the cluster
@@ -70,7 +78,7 @@ class MyCustomJob(Jobs):
     }
     params: Type[BaseModel] = MyParams  # Your Pydantic model for params
     requires_vram_gb: int = 24
-    base_image: str = 'nielsrolf/ow-default' # optional
+    base_image: str = 'nielsrolf/ow-unsloth:v0.13.1' # optional
 
     def get_entrypoint(self, validated_params: BaseModel) -> str:
         # Get the entrypoint command for the job.
@@ -126,22 +134,6 @@ with ow.api.deploy(model):            # async with ow.api.deploy(model) also wor
     print(completion.choices[0].message)       # when this context manager exits, it calls api.down()
 ```
 [More details](cookbook/api-deployment/)
-
-
-### Inspect-AI
-```python
-from openweights import OpenWeights
-ow = OpenWeights()
-
-job = ow.inspect_ai.create(
-    model='meta-llama/Llama-3.3-70B-Instruct',
-    eval_name='inspect_evals/gpqa_diamond',
-    options='--top-p 0.9', # Can be any options that `inspect eval` accepts - we simply pass them on without validation
-)
-
-if job.status == 'completed':
-    job.download('output')
-```
 
 ---
 

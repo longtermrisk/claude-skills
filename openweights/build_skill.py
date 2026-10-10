@@ -82,6 +82,11 @@ def build_references(repo_path):
     if claude_md.exists():
         copy_file(claude_md, refs_dir / "03_architecture.md")
 
+    # Cost tracking and per-key spending limits
+    cost_doc = repo_path / "docs" / "cost-tracking.md"
+    if cost_doc.exists():
+        copy_file(cost_doc, refs_dir / "04_cost_tracking.md")
+
     # Copy .env.worker.example as reference
     env_example = repo_path / ".env.worker.example"
     if env_example.exists():

@@ -506,8 +506,9 @@ ow signup
 
 # Manage tokens
 ow token create --name "my-token"
-ow token list
-ow token revoke <token-id>
+ow token create --name "experiment" --spending-limit-usd 100   # lifetime USD budget
+ow token ls
+ow token revoke --token-id <token-id>
 
 # List jobs
 ow ls
@@ -536,6 +537,15 @@ ow env import .env.worker
 ow env list
 ow env delete KEY_NAME
 ```
+
+**Costs and spending limits:** `ow.costs.report()` (or the dashboard's Costs page)
+shows estimated USD spend per job, worker, key and user. A key can carry a lifetime
+spending limit; when it is exhausted, new submissions are rejected and its pending
+and running jobs are canceled. A **budgeted key is not an organization admin**: it
+cannot read org secrets (`ow env`), manage members, or revoke keys, and it can only
+create keys with `--spending-limit-usd` no larger than its own remaining budget —
+that amount is moved out of its own limit. Only a signed-in admin user can change an
+existing limit. Details: `references/04_cost_tracking.md`.
 
 **Development workflow with live sync:**
 ```bash
@@ -711,6 +721,7 @@ This skill includes comprehensive reference documentation:
 - **references/01_overview.md**: Complete feature overview and quickstart
 - **references/02_workflows.md**: Detailed examples and data formats
 - **references/03_architecture.md**: System architecture and advanced concepts
+- **references/04_cost_tracking.md**: Cost accounting rules and API-key spending limits
 - **references/env.worker.example**: Required environment variables
 
 Load these when deeper understanding is needed. For most workflows, this SKILL.md provides sufficient guidance.
