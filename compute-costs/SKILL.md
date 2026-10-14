@@ -8,14 +8,15 @@ description: Track and attribute compute spend (OpenWeights, RunPod, LiteLLM, Ti
 One dashboard for all our compute spend, by **month × provider × project**, plus the
 **retention** systems that delete unused Hugging Face models and Tinker checkpoints.
 
-- Web: https://costs.nielsrolf.com (one shared password; ask Niels)
-- JSON API: same host, `Authorization: Bearer $COSTS_PASSWORD`
+- Web: https://costs.nielsrolf.com with a personal account (ask Niels for an invite link)
+- JSON API: same host, `Authorization: Bearer $COSTS_TOKEN`, a personal API token you create
+  on the Account tab (shown once; it acts as you)
 - MCP: `https://costs.nielsrolf.com/mcp` (streamable HTTP, same bearer token)
 - This file: https://costs.nielsrolf.com/skill.md
 
 ```bash
 claude mcp add --transport http costs https://costs.nielsrolf.com/mcp \
-  --header "Authorization: Bearer $COSTS_PASSWORD"
+  --header "Authorization: Bearer $COSTS_TOKEN"
 ```
 
 ## How spend reaches a project
@@ -101,7 +102,7 @@ what a dry run would delete.
 
 ```python
 import os, requests
-H = {"Authorization": f"Bearer {os.environ['COSTS_PASSWORD']}"}
+H = {"Authorization": f"Bearer {os.environ['COSTS_TOKEN']}"}
 B = "https://costs.nielsrolf.com"
 
 # after push_to_hub: keep this model (optionally until a date)
@@ -117,7 +118,8 @@ requests.post(f"{B}/api/retention/tinker/keep", headers=H, timeout=15,
 
 ## API reference
 
-All endpoints take/return JSON and need `Authorization: Bearer <password>`.
+All endpoints take/return JSON and need `Authorization: Bearer <personal API token>`. Admin-only:
+user management (`/api/users`), the Tinker auto-clean switch and cleanup policies.
 
 | Method & path | Purpose |
 |---|---|
