@@ -45,6 +45,10 @@ one-click assignment. Rules apply to all past months as soon as they are added.
   If the Tinker project id equals the dashboard project's name, it is mapped with no
   rule; otherwise add a rule `tinker_project = <id>`. Alternatively tag the session:
   `ServiceClient(user_metadata={"project": "<project>"})`.
+- **Per person:** every Tinker cost line names the user who created the session, so a rule on
+  "Tinker user in account" (e.g. `CLR: Jane Doe` → `my-project`) maps one person's usage in one
+  Tinker org. Checkpoint storage is billed to the org, so it is split between users by their
+  share of stored checkpoints (an estimate).
 - **Add your Tinker API key** on the Connections tab (it needs billing view access in
   the Tinker org), then assign it to your project if all of its usage belongs to one.
 - **Checkpoints are deleted automatically** once the cleanup is switched on (see
@@ -135,5 +139,5 @@ All endpoints take/return JSON and need `Authorization: Bearer <password>`.
 | `GET /api/retention/tinker/actions?action=would_delete` | latest cleanup run |
 
 Rule attributes: `ow_org`, `litellm_team`, `litellm_key`, `litellm_user`, `tinker_project`,
-`tinker_user`, `tinker_meta.<key>`, `modal_env`, `modal_app`, `modal_tag.<key>`,
+`tinker_user`, `tinker_account_user` (`"<account>: <user>"`), `tinker_meta.<key>`, `modal_env`, `modal_app`, `modal_tag.<key>`,
 `runpod_account`, `runpod_pod_name`, `hf_repo`, `project_hint`, `connection`, `provider`.
