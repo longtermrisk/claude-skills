@@ -7,6 +7,44 @@ description: Reference guide for the Tinker training API for large language mode
 
 This file contains documentation for the Tinker API, a training API for large language models.
 
+## Our setup: projects, cost tracking and checkpoint cleanup
+
+Tinker usage is billed to the whole Tinker organization, so attribution to a research project
+happens through **Tinker projects** and our cost dashboard (https://costs.nielsrolf.com, see the
+`compute-costs` skill). Follow these rules for every run:
+
+1. **Always run inside a project.** Pass it when creating the client, or set it in the environment:
+   ```python
+   service_client = tinker.ServiceClient(project_id="<tinker project id>")
+   # or: export TINKER_PROJECT_ID=<tinker project id>
+   ```
+   The cost dashboard maps a Tinker project to the dashboard project of the same name with no
+   further setup; if the ids differ, add a rule `tinker_project = <id>` on the dashboard. Session
+   metadata works too: `tinker.ServiceClient(user_metadata={"project": "<dashboard project>"})`.
+2. **Fix attribution after the fact if you forgot.** Usage is attributed to a session's *current*
+   project, so moving a session also moves its past spend:
+   `service_client.create_rest_client().assign_session_project(session_id, project_id).result()`.
+   A session cannot be moved out of a project again.
+3. **Connect your API key.** Add your Tinker API key on the dashboard (Connections → add, provider
+   `tinker`; it needs billing view access) and, if all of its usage belongs to one project, assign
+   it there.
+4. **Checkpoints are deleted automatically** (once the cleanup is switched on). Nightly, per
+   account: *training* checkpoints older than 14 days and *sampler* checkpoints older than 60 days
+   go, except each run's newest checkpoint of each type, public checkpoints, checkpoints that
+   already have a Tinker TTL, anything with `noautodelete` in its run id / path / metadata, and
+   anything on the keep list. Checkpoint storage is our largest storage cost, so only keep what
+   you need, and protect it explicitly:
+   ```python
+   import os, requests
+   requests.post("https://costs.nielsrolf.com/api/retention/tinker/keep",
+                 headers={"Authorization": f"Bearer {os.environ['COSTS_PASSWORD']}"}, timeout=15,
+                 json={"pattern": "tinker://RUN-ID/sampler_weights/final",   # or a run id, glob, project:<id>
+                       "keep_until": "2027-03-01", "note": "final model for the paper"}).raise_for_status()
+   ```
+   Or give a checkpoint its own expiry: `rest_client.set_checkpoint_ttl_from_tinker_path(path, ttl_seconds)`.
+   The dashboard's Retention → Tinker page shows current storage per project/user and what the
+   next cleanup would delete.
+
 ## Accessing Full Documentation
 
 If you have a checkout of the tinker-cookbook repository, the documentation can be found in the `docs/` folder.
