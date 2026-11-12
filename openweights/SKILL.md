@@ -400,6 +400,32 @@ Jobs progress through states: `pending` → `in_progress` → `completed`/`faile
 - **Runs** are individual executions of a job
 - **Events** are structured logs/outputs during a run
 
+### Job Priority
+
+Pending jobs with a higher `priority` are started first (integer, default `0`, negative = run after everything else). Use it when many jobs are queued and some results are needed sooner, or to push a large sweep behind interactive work. Requires `openweights>=0.15.0`.
+
+```python
+# Any job type accepts priority= at submission
+job = ow.fine_tuning.create(model=model, training_file=training_file, priority=10)
+job = ow.inference.create(model=model, input_file_id=input_file, priority=-1)
+job = ow.my_custom_job.create(param=1, priority=5)
+
+# Change it later (useful while the job is still pending)
+job.set_priority(20)
+ow.jobs.set_priority(job_id, 20)
+print(job.priority)
+```
+
+```bash
+ow exec "python train.py" --priority 10
+```
+
+- Priorities order jobs within your organization only.
+- A free worker takes a highest-priority job among those it can run (same Docker image, compatible hardware); ties are broken as before (cached model first, otherwise random).
+- Running jobs are **not** preempted: a high-priority job still waits for a suitable worker to be free or to start.
+- The priority is not part of the job ID: resubmitting the same job with another `priority` updates the existing job, resubmitting without `priority` keeps it.
+- Jobs pinned to an older `docker_image` (before v0.15.0) run on older workers, which ignore priorities.
+
 ### Waiting for Completion
 
 ```python
