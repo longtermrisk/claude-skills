@@ -60,7 +60,8 @@ To send spend to a sub-project with no rule, name things after it: Tinker sessio
 `ServiceClient(user_metadata={"project": "<project>"})` (Tinker's own project ids are UUIDs,
 so they need a rule), Modal `MODAL_ENVIRONMENT=<project>` or tag `project=<project>`,
 RunPod pod `<project>/...`. Credentials minted for one project are that project's ahead of
-every rule: a LiteLLM key with `metadata: {"costs_project": "<project>"}`, and an OpenWeights
+every rule: a LiteLLM key with `metadata: {"costs_project": "<project>"}`, Tinker session
+metadata `{"costs_project": "<project>"}` (r-docs sets it for budgeted workspaces), and an OpenWeights
 API token **named after the project** (an org's spend is divided between its tokens by what
 their jobs cost; jobs submitted without a token stay with the org).
 
