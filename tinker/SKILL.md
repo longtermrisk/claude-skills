@@ -37,7 +37,7 @@ happens through **Tinker projects** and our cost dashboard (https://costs.nielsr
    ```python
    import os, requests
    requests.post("https://costs.nielsrolf.com/api/retention/tinker/keep",
-                 headers={"Authorization": f"Bearer {os.environ['COSTS_PASSWORD']}"}, timeout=15,
+                 headers={"Authorization": f"Bearer {os.environ['COSTS_TOKEN']}"}, timeout=15,
                  json={"pattern": "tinker://RUN-ID/sampler_weights/final",   # or a run id, glob, project:<id>
                        "keep_until": "2027-03-01", "note": "final model for the paper"}).raise_for_status()
    ```
