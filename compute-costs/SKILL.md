@@ -32,6 +32,66 @@ line carries attributes, and the first of these that applies decides its project
 Anything left over is **Unassigned**; the dashboard's Unassigned tab lists it with
 one-click assignment. Rules apply to all past months as soon as they are added.
 
+## Nested projects and budgets
+
+A project can sit under another one (e.g. one project per agent workspace or per run, under
+the project that pays for it). Spend is booked on the most specific project and **adds up
+the tree**: the dashboard shows top-level projects, each including its sub-projects, and
+opens a project to show them.
+
+A project can have a **lifetime budget** in USD that covers itself and everything below it.
+The dashboard only reports it (`remaining_usd` is the tightest of the project's own budget
+and those above it); whoever hands out the keys enforces it. While a budget is open, LiteLLM,
+Tinker and Modal are re-read every 10 minutes instead of every 6 hours; OpenWeights keeps the
+6-hour cycle. Numbers still arrive with a delay (`synced_at`, and Tinker's own data lags
+about an hour), so a limit can be overshot by what is spent in between. Mark a finished
+project `closed` so it is no longer watched.
+
+```python
+requests.post(f"{B}/api/projects", headers=H, json={"name": "backlog-run-42", "parent": "backlog",
+                                                    "budget_usd": 1000}).raise_for_status()
+s = requests.get(f"{B}/api/projects/backlog-run-42/spend", headers=H).json()
+# {"spent_usd": 61.0, "budget_usd": 1000, "remaining_usd": 939.0, "over_budget": false,
+#  "by_provider": [{"provider": "tinker", "usd": 43.0, ...}, {"provider": "litellm", "usd": 18.0, ...}],
+#  "limits": [...], "children": [...], "synced_at": {"tinker": "...", "litellm": "..."}}
+```
+
+To send spend to a sub-project with no rule, name things after it: Tinker session metadata
+`ServiceClient(user_metadata={"project": "<project>"})` (Tinker's own project ids are UUIDs,
+so they need a rule), Modal `MODAL_ENVIRONMENT=<project>` or tag `project=<project>`,
+RunPod pod `<project>/...`. Credentials minted for one project are that project's ahead of
+every rule: a LiteLLM key with `metadata: {"costs_project": "<project>"}`, and an OpenWeights
+API token **named after the project** (an org's spend is divided between its tokens by what
+their jobs cost; jobs submitted without a token stay with the org).
+
+### If `COSTS_PROJECT` is set in your environment
+
+You are working in an r-docs workspace with a compute budget, and `COSTS_PROJECT` is its
+project here. Nothing to do for the usual providers, as long as you use the credentials and
+settings from your environment as they are:
+
+- **LiteLLM, OpenWeights**: the workspace has its own key / token, counted and limited.
+- **Tinker**: requests go through r-docs (`TINKER_BASE_URL`), which tags every session with
+  the project and refuses them once the budget is used up.
+- **Modal**: `MODAL_ENVIRONMENT` is the workspace's own Modal environment. Everything in it is
+  counted for the workspace, and **every app in it is stopped when the budget is used up**
+  (volumes and secrets stay). Do not pass another `environment_name=` / `--env`: spend
+  elsewhere is counted against nobody and is not stopped. Volumes, secrets and deployed apps
+  of other environments are not visible from yours; create what you need in your own.
+
+Only where one of these is missing (no `TINKER_BASE_URL`, no `MODAL_ENVIRONMENT`) is the key a
+shared one, and you tag the usage yourself:
+
+```python
+import os, tinker, modal
+project = os.environ["COSTS_PROJECT"]
+service = tinker.ServiceClient(user_metadata={"project": project})
+app = modal.App("my-app", tags={"project": project})
+```
+
+RunPod pods: name them `f"{project}/<anything>"`. The workspace's budget and spend so far:
+ask r-docs (`get_workspace_budget`), or `GET /api/projects/$COSTS_PROJECT/spend` here.
+
 ## What each of us should do
 
 ### OpenWeights
@@ -65,10 +125,13 @@ one-click assignment. Rules apply to all past months as soon as they are added.
 ### Modal
 - Add a token (`{"token_id": "...", "token_secret": "..."}`) on the Connections tab.
 - Tag apps `project=<project>`; or assign the workspace / a rule on `modal_env`, `modal_app`.
+- Or give a project its own Modal environment: `POST /api/projects/<project>/modal-environment`
+  creates it (named after the project). Run with `MODAL_ENVIRONMENT=<project>`; everything in
+  it is the project's, and `POST .../modal-environment/stop` stops every app in it.
 
 ### LiteLLM
-- Every LiteLLM team automatically becomes a project of the same name the first time it
-  has spend. To group teams, add a rule (e.g. `litellm_team = *-srf` → `srf`) first.
+- Every LiteLLM team automatically becomes a project of the same name at the next LiteLLM
+  sync (every 6 h; or Connections → litellm → Sync to do it right away). To group teams, add a rule (e.g. `litellm_team = *-srf` → `srf`) first.
 
 ### Hugging Face (`longtermrisk` org)
 - **Every model must belong to a project** so storage has an owner. Models pushed by an
@@ -123,13 +186,22 @@ user management (`/api/users`), the Tinker auto-clean switch and cleanup policie
 
 | Method & path | Purpose |
 |---|---|
-| `GET /api/summary?rows=project\|provider&month_from=YYYY-MM&month_to=&vat=incl\|excl` | spend per group and month |
+| `GET /api/summary?rows=project\|provider&month_from=YYYY-MM&month_to=&vat=incl\|excl&project=&rollup=top\|none` | spend per group and month; project rows include sub-projects, `project=X` shows X and its direct sub-projects |
 | `GET/POST /api/manual` `{month, provider, usd, includes_vat, project?, note?}`, `PATCH/DELETE /api/manual/{id}` | manual entries (bills without an API) |
 | `GET /api/vat`, `PUT /api/vat/{supplier}` `{rate, status, note}` | VAT rate per billing supplier |
-| `GET /api/lines?project=&provider=&month_from=&q=&limit=` | cost lines with attributes |
+| `GET /api/lines?project=&provider=&month_from=&q=&limit=&exact=` | cost lines with attributes (`project` includes sub-projects unless `exact=true`) |
 | `GET /api/unassigned` | unassigned spend grouped by attribute value |
 | `GET /api/fields` | attributes rules can use, with values and spend |
-| `GET/POST /api/projects`, `DELETE /api/projects/{name}` | projects |
+| `GET /api/projects` | projects as a tree, with lifetime spend, budget and what is left |
+| `POST /api/projects` `{name, description?, parent?, budget_usd?, external_ref?}` | create (an existing one is returned unchanged) |
+| `PATCH /api/projects/{name}` `{name?, description?, parent?, budget_usd?, closed?, external_ref?}` | change only the fields sent (`parent: null` = top level, `budget_usd: null` = no budget) |
+| `DELETE /api/projects/{name}` | delete; its sub-projects move up one level |
+| `GET /api/projects/{name}/spend?month_from=&month_to=&vat=` | spend in total and per provider incl. sub-projects, budget, `remaining_usd`, `synced_at` |
+| `GET /api/budgets?include_closed=` | every project a budget applies to, with spend and what is left |
+| `POST /api/projects/{name}/modal-environment` `{connection?}` or `{token_id, token_secret}` | give the project its own Modal environment (created if missing); a Modal workspace not connected yet is added as a connection |
+| `GET /api/projects/{name}/modal-environment` | its Modal environments and the apps running in them now |
+| `POST /api/projects/{name}/modal-environment/stop` | stop every app in them (volumes and secrets stay) |
+| `DELETE /api/projects/{name}/modal-environment?delete_environment=` | stop the apps and drop the link; `delete_environment=true` deletes the environment at Modal with its volumes (irreversible) |
 | `GET /api/rules`, `POST /api/rules` `{field, pattern, splits:[{project, share}], note}` | rules (same field+pattern replaces) |
 | `PATCH/DELETE /api/rules/{id}`, `GET /api/rules/preview?field=&pattern=` | edit, delete, preview |
 | `GET/POST /api/connections` `{provider, name, secret}` | provider accounts (keys write-only) |
@@ -140,6 +212,6 @@ user management (`/api/users`), the Tinker auto-clean switch and cleanup policie
 | `GET/POST/DELETE /api/retention/tinker/keep`, `GET .../tinker/check?path=` | Tinker keep list |
 | `GET /api/retention/tinker/actions?action=would_delete` | latest cleanup run |
 
-Rule attributes: `ow_org`, `litellm_team`, `litellm_key`, `litellm_user`, `tinker_project`,
+Rule attributes: `ow_org`, `ow_key` (OpenWeights API token name), `litellm_team`, `litellm_key`, `litellm_user`, `tinker_project`,
 `tinker_user`, `tinker_account_user` (`"<account>: <user>"`), `tinker_meta.<key>`, `modal_env`, `modal_app`, `modal_tag.<key>`,
 `runpod_account`, `runpod_pod_name`, `hf_repo`, `project_hint`, `connection`, `provider`.

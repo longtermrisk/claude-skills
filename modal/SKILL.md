@@ -14,6 +14,23 @@ pip install modal
 modal setup   # browser-based auth; creates ~/.modal.toml
 ```
 
+## Cost tracking and budgets
+
+Modal spend is tracked per project on our cost dashboard (https://costs.nielsrolf.com, see the
+`compute-costs` skill). A Modal token has no spending limit, so follow these rules:
+
+- **If `MODAL_ENVIRONMENT` is set** (an r-docs workspace with a compute budget), it names the
+  workspace's own Modal environment, and the SDK and CLI use it by default. Leave it alone: do
+  not pass `environment_name=` or `--env`. Everything in that environment counts against the
+  workspace's budget, and **every app in it is stopped when the budget is used up** (also when
+  another provider used it up). Volumes and secrets survive a stop, so write results to a
+  Volume as you go. Other environments' volumes, secrets and deployed apps are not visible
+  from yours; create what you need in your own.
+- **Otherwise tag every app with its project**, or its spend is counted against nobody:
+  `modal.App("my-app", tags={"project": "<dashboard project>"})`.
+- Stop what you no longer need (`modal app stop <name>`): deployed apps with `min_containers`,
+  schedules and forgotten sandboxes keep billing.
+
 ## Core Programming Model
 
 ```python

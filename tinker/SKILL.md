@@ -13,6 +13,13 @@ Tinker usage is billed to the whole Tinker organization, so attribution to a res
 happens through **Tinker projects** and our cost dashboard (https://costs.nielsrolf.com, see the
 `compute-costs` skill). Follow these rules for every run:
 
+**In an r-docs workspace with a compute budget** (`COSTS_PROJECT` and `TINKER_BASE_URL` are set
+in your environment) rule 1 is done for you: your Tinker requests go through r-docs, which tags
+every session with the workspace's project and refuses requests once the budget is used up
+(HTTP 402 `budget_exhausted`; stop and report it, retrying will not help). Use
+`tinker.ServiceClient()` with the environment as it is: do not set another `base_url`, API key or
+`project_id`.
+
 1. **Always run inside a project.** Pass it when creating the client, or set it in the environment:
    ```python
    service_client = tinker.ServiceClient(project_id="<tinker project id>")
