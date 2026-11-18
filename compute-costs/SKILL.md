@@ -43,8 +43,8 @@ A project can have a **lifetime budget** in USD that covers itself and everythin
 The dashboard only reports it (`remaining_usd` is the tightest of the project's own budget
 and those above it); whoever hands out the keys enforces it. While a budget is open, LiteLLM,
 Tinker and Modal are re-read every 10 minutes instead of every 6 hours; OpenWeights keeps the
-6-hour cycle. Numbers still arrive with a delay (`synced_at`, and Tinker's own data lags
-about an hour), so a limit can be overshot by what is spent in between. Mark a finished
+6-hour cycle. Numbers still arrive with a delay (`synced_at`, and Tinker's own billing data
+lags 7-8 hours), so a limit can be overshot by what is spent in between. Mark a finished
 project `closed` so it is no longer watched.
 
 ```python
