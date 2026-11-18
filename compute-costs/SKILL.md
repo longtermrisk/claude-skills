@@ -61,9 +61,11 @@ To send spend to a sub-project with no rule, name things after it: Tinker sessio
 so they need a rule), Modal `MODAL_ENVIRONMENT=<project>` or tag `project=<project>`,
 RunPod pod `<project>/...`. Credentials minted for one project are that project's ahead of
 every rule: a LiteLLM key with `metadata: {"costs_project": "<project>"}`, Tinker session
-metadata `{"costs_project": "<project>"}` (r-docs sets it for budgeted workspaces), and an OpenWeights
-API token **named after the project** (an org's spend is divided between its tokens by what
-their jobs cost; jobs submitted without a token stay with the org).
+metadata `{"costs_project": "<project>"}` (r-docs sets it for budgeted workspaces), and the
+OpenWeights API token r-docs mints for a budgeted workspace, named after the workspace's
+project (an org's spend is divided between its tokens by what their jobs cost; jobs submitted
+without a token stay with the org). A token you name yourself is not attributed by its name:
+it stays with the org's rule, and a rule on `ow_key` can move it.
 
 ### If `COSTS_PROJECT` is set in your environment
 
