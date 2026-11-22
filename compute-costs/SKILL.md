@@ -35,7 +35,7 @@ agent has to do:
   project (its LiteLLM team key, its OpenWeights org) rather than a personal or shared one.
 - **Anything that keeps running unattended has an end date.** RunPod pods are named
   `<project>/<owner>-<N>d-<what>`, e.g. `srf/jane-4d-vllm-eval`: `<N>d` is how many days
-  after it was created the pod may be stopped by anyone, without asking. Keep data you need
+  after it was created anyone may terminate the pod, without asking. Keep data you need
   on a network volume or push it elsewhere. Set `timeout=` on Modal functions, and stop
   deployed Modal apps / OpenWeights API deployments when the work is done.
 - **Clean up what you started** before you finish: stop pods, apps and deployments you
