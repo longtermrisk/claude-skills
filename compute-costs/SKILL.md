@@ -141,10 +141,16 @@ ask r-docs (`get_workspace_budget`), or `GET /api/projects/$COSTS_PROJECT/spend`
   Retention). Protect what you need *before* that.
 
 ### RunPod (outside OpenWeights)
-- **Add your RunPod API key** on the Connections tab (read access is enough).
+- **Add your RunPod API key** on the Connections tab. Read access is enough for costs; with
+  Pods read/write the dashboard can also terminate expired pods (Retention > RunPod pods).
 - **Name pods `<project>/<owner>-<N>d-<what>`**, e.g. `srf/jane-4d-vllm-eval`. The part
   before `/` is the project; `<N>d` is the pod's planned lifetime in days (see conventions above). Names are recorded every 5 minutes while a pod is alive (RunPod's bill
   only has pod ids), so a pod living under 5 minutes may stay unnamed.
+- **Expired pods are terminated** once an admin switches this on (Retention > RunPod pods):
+  a pod older than `<N>` days, or whose name does not follow the convention, is mailed to
+  `<owner>` (the dashboard user with that first name or address) and terminated 24 h later
+  if it is still due. To keep it, rename it with a larger `<N>`. Pods started by
+  OpenWeights are never touched. Check a name: `GET /api/retention/runpod/check?name=...&age_days=...`.
 - Or assign the whole account to a project on the Connections tab.
 
 ### Modal
