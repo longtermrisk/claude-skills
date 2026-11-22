@@ -1,23 +1,45 @@
 ---
 name: compute-costs
-description: Track and attribute compute spend (OpenWeights, RunPod, LiteLLM, Tinker, Modal, Hugging Face storage) to projects at https://costs.nielsrolf.com, and protect models/checkpoints from automatic cleanup. Use when starting GPU/LLM/Tinker work for a project, when asked what something costs, or before/after pushing models or checkpoints that must be kept.
+description: Track and attribute compute spend (OpenWeights, RunPod, LiteLLM, Tinker, Modal, Hugging Face storage) to projects at https://costs.longtermrisk.org, and protect models/checkpoints from automatic cleanup. Use when starting GPU/LLM/Tinker work for a project, when asked what something costs, or before/after pushing models or checkpoints that must be kept.
 ---
 
-# Compute costs: costs.nielsrolf.com
+# Compute costs: costs.longtermrisk.org
 
 One dashboard for all our compute spend, by **month × provider × project**, plus the
 **retention** systems that delete unused Hugging Face models and Tinker checkpoints.
 
-- Web: https://costs.nielsrolf.com with a personal account (ask Niels for an invite link)
+- Web: https://costs.longtermrisk.org with a personal account (ask Niels for an invite link)
 - JSON API: same host, `Authorization: Bearer $COSTS_TOKEN`, a personal API token you create
   on the Account tab (shown once; it acts as you)
-- MCP: `https://costs.nielsrolf.com/mcp` (streamable HTTP, same bearer token)
-- This file: https://costs.nielsrolf.com/skill.md
+- MCP: `https://costs.longtermrisk.org/mcp` (streamable HTTP, same bearer token)
+- This file: https://costs.longtermrisk.org/skill.md
 
 ```bash
-claude mcp add --transport http costs https://costs.nielsrolf.com/mcp \
+claude mcp add --transport http costs https://costs.longtermrisk.org/mcp \
   --header "Authorization: Bearer $COSTS_TOKEN"
 ```
+
+## Team conventions (compute usage policy)
+
+The full policy: https://docs.longtermrisk.org/documents/cmwryr95cji36wk1n7vnwsczr. What an
+agent has to do:
+
+- **Every resource belongs to a project** on the dashboard, and every project has an
+  **owner**: the person who checks that its spend is intended. Write the owner into the
+  project's description (`"owner: Jane Doe. ..."`). Goal: **$0 Unassigned**.
+- **No project yet?** Small experiments go to `coding-agents-general` (the whole team stays
+  under $500/month there). Anything bigger, or anything that runs for days, gets its own
+  project. Ask the user which project to use before starting GPU work; do not guess.
+- **Use the most specific credential you have**: inside an r-docs workspace with
+  `COSTS_PROJECT`, use the workspace's keys as they are (below). Elsewhere use a key of the
+  project (its LiteLLM team key, its OpenWeights org) rather than a personal or shared one.
+- **Anything that keeps running unattended has an end date.** RunPod pods are named
+  `<project>/<owner>-<N>d-<what>`, e.g. `srf/jane-4d-vllm-eval`: `<N>d` is how many days
+  after it was created the pod may be stopped by anyone, without asking. Keep data you need
+  on a network volume or push it elsewhere. Set `timeout=` on Modal functions, and stop
+  deployed Modal apps / OpenWeights API deployments when the work is done.
+- **Clean up what you started** before you finish: stop pods, apps and deployments you
+  created, unless the user said to keep them; tell the user what is still running.
 
 ## How spend reaches a project
 
@@ -92,7 +114,7 @@ service = tinker.ServiceClient(user_metadata={"project": project})
 app = modal.App("my-app", tags={"project": project})
 ```
 
-RunPod pods: name them `f"{project}/<anything>"`. The workspace's budget and spend so far:
+RunPod pods: name them `f"{project}/<owner>-<N>d-<what>"`. The workspace's budget and spend so far:
 ask r-docs (`get_workspace_budget`), or `GET /api/projects/$COSTS_PROJECT/spend` here.
 
 ## What each of us should do
@@ -120,8 +142,8 @@ ask r-docs (`get_workspace_budget`), or `GET /api/projects/$COSTS_PROJECT/spend`
 
 ### RunPod (outside OpenWeights)
 - **Add your RunPod API key** on the Connections tab (read access is enough).
-- **Name pods `<project>/<anything>`**, e.g. `srf/vllm-eval`. The part before `/` is the
-  project. Names are recorded every 5 minutes while a pod is alive (RunPod's bill
+- **Name pods `<project>/<owner>-<N>d-<what>`**, e.g. `srf/jane-4d-vllm-eval`. The part
+  before `/` is the project; `<N>d` is the pod's planned lifetime in days (see conventions above). Names are recorded every 5 minutes while a pod is alive (RunPod's bill
   only has pod ids), so a pod living under 5 minutes may stay unnamed.
 - Or assign the whole account to a project on the Connections tab.
 
@@ -169,7 +191,7 @@ what a dry run would delete.
 ```python
 import os, requests
 H = {"Authorization": f"Bearer {os.environ['COSTS_TOKEN']}"}
-B = "https://costs.nielsrolf.com"
+B = "https://costs.longtermrisk.org"
 
 # after push_to_hub: keep this model (optionally until a date)
 requests.post(f"{B}/api/retention/hf/keep", headers=H, timeout=15,

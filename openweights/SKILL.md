@@ -574,12 +574,12 @@ that amount is moved out of its own limit. Only a signed-in admin user can chang
 existing limit. Details: `references/04_cost_tracking.md`.
 
 **Org-wide cost tracking:** every OpenWeights organization belongs to a research project on
-the cost dashboard (https://costs.nielsrolf.com, see the `compute-costs` skill). Its GPU spend
+the cost dashboard (https://costs.longtermrisk.org, see the `compute-costs` skill). Its GPU spend
 is counted from the actual RunPod bills of its workers, and every Hugging Face model its jobs
 push to `longtermrisk` counts toward that project's storage. Use the organization of the project
 you are working on. Models in `longtermrisk` are deleted automatically when unused (0 downloads in
 30 days, and older than 14 days if >= 4 GB or 60 days otherwise): put `noautodelete` in the model
-name or add it to the keep list (`POST https://costs.nielsrolf.com/api/retention/hf/keep`) to keep it.
+name or add it to the keep list (`POST https://costs.longtermrisk.org/api/retention/hf/keep`) to keep it.
 
 **Development workflow with live sync:**
 ```bash

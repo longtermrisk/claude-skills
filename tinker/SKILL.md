@@ -10,7 +10,7 @@ This file contains documentation for the Tinker API, a training API for large la
 ## Our setup: projects, cost tracking and checkpoint cleanup
 
 Tinker usage is billed to the whole Tinker organization, so attribution to a research project
-happens through **Tinker projects** and our cost dashboard (https://costs.nielsrolf.com, see the
+happens through **Tinker projects** and our cost dashboard (https://costs.longtermrisk.org, see the
 `compute-costs` skill). Follow these rules for every run:
 
 **In an r-docs workspace with a compute budget** (`COSTS_PROJECT` and `TINKER_BASE_URL` are set
@@ -43,7 +43,7 @@ every session with the workspace's project and refuses requests once the budget 
    you need, and protect it explicitly:
    ```python
    import os, requests
-   requests.post("https://costs.nielsrolf.com/api/retention/tinker/keep",
+   requests.post("https://costs.longtermrisk.org/api/retention/tinker/keep",
                  headers={"Authorization": f"Bearer {os.environ['COSTS_TOKEN']}"}, timeout=15,
                  json={"pattern": "tinker://RUN-ID/sampler_weights/final",   # or a run id, glob, project:<id>
                        "keep_until": "2027-03-01", "note": "final model for the paper"}).raise_for_status()
