@@ -16,7 +16,7 @@ modal setup   # browser-based auth; creates ~/.modal.toml
 
 ## Cost tracking and budgets
 
-Modal spend is tracked per project on our cost dashboard (https://costs.nielsrolf.com, see the
+Modal spend is tracked per project on our cost dashboard (https://costs.longtermrisk.org, see the
 `compute-costs` skill). A Modal token has no spending limit, so follow these rules:
 
 - **If `MODAL_ENVIRONMENT` is set** (an r-docs workspace with a compute budget), it names the
