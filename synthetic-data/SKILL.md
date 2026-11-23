@@ -32,7 +32,7 @@ from openai import AsyncOpenAI
 
 client = AsyncOpenAI(
     api_key=os.environ['LITELLM_API_KEY'],  # already set in the environment
-    base_url="https://litellm.nielsrolf.com",
+    base_url="https://litellm.longtermrisk.org",
     # Cloudflare blocks the SDK's default User-Agent — see the litellm skill
     default_headers={"User-Agent": "litellm-client/1.0"},
     max_retries=5,  # built-in exponential backoff for batch jobs

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Production-ready script for parallel synthetic data generation via the org's
-LiteLLM proxy (https://litellm.nielsrolf.com).
+LiteLLM proxy (https://litellm.longtermrisk.org).
 
 This script demonstrates best practices for large-scale dataset generation:
 - Parallel execution with appropriate concurrency limits
@@ -23,7 +23,7 @@ from openai import AsyncOpenAI
 
 client = AsyncOpenAI(
     api_key=os.environ['LITELLM_API_KEY'],
-    base_url="https://litellm.nielsrolf.com",
+    base_url="https://litellm.longtermrisk.org",
     # Cloudflare blocks the SDK's default User-Agent — see the litellm skill
     default_headers={"User-Agent": "litellm-client/1.0"},
     max_retries=5,
